@@ -13,7 +13,7 @@ struct Job {
     QString quota;
     QString salaryStart;
     QString salaryEnd;
-    QStringList requirements;
+    QString requirements;
 };
 
 QT_BEGIN_NAMESPACE

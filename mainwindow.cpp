@@ -1,4 +1,4 @@
-// mainwindow.cpp
+// mainwindow.cpp (适配简化版PHP的最终版本)
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QFileDialog>
@@ -7,7 +7,6 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QTextCodec>
-#include <QListWidgetItem>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -35,17 +34,14 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// --- 已修正：现在手动选择文件，只是为了获取路径，然后调用统一的加载函数 ---
 void MainWindow::on_fileGetButton_clicked()
 {
     QString filePath = QFileDialog::getOpenFileName(this, "选择 career.php 文件", "", "PHP Files (*.php)");
     if (!filePath.isEmpty()) {
-        // 关键修正：让手动加载也走我们写好的、带编码处理的函数
         loadJobsFromFile(filePath);
     }
 }
 
-// --- 统一的、带编码修正的文件加载函数 ---
 void MainWindow::loadJobsFromFile(const QString& filePath)
 {
     QFile file(filePath);
@@ -67,16 +63,14 @@ void MainWindow::loadJobsFromFile(const QString& filePath)
     ui->saveButton->setEnabled(true);
     ui->addButton->setEnabled(true);
     ui->deleteButton->setEnabled(true);
-
-    QMessageBox::information(this, "加载成功", "已成功加载职位信息！");
 }
 
 
+// --- 已重写为更简单、更稳健的版本 ---
 void MainWindow::parsePhpContent(const QString& content)
 {
     m_jobs.clear();
 
-    // 第1步：和以前一样，先把包含所有职位的大数组 $jobs 的内容提取出来
     QRegularExpression jobsArrayRe("\\$jobs\\s*=\\s*\\[(.*)\\]\\s*;",
                                    QRegularExpression::DotMatchesEverythingOption);
     QRegularExpressionMatch arrayMatch = jobsArrayRe.match(content);
@@ -84,57 +78,41 @@ void MainWindow::parsePhpContent(const QString& content)
         QMessageBox::warning(this, "解析失败", "在文件中未找到 $jobs 数组。");
         return;
     }
-    QString jobsContent = arrayMatch.captured(1).trimmed();
+    QString jobsContent = arrayMatch.captured(1);
 
-    // 第2步 (核心修正)：不再使用简单的正则匹配，而是手动查找匹配的括号来分割每个职位区块
-    // 这样做可以完美解决 "requirements" 数组的嵌套问题
-    int level = 0;
-    int lastPos = 0;
-    for (int i = 0; i < jobsContent.length(); ++i) {
-        if (jobsContent[i] == '[') {
-            if (level == 0) {
-                lastPos = i; // 记录一个顶级区块的开始
-            }
-            level++;
-        } else if (jobsContent[i] == ']') {
-            level--;
-            if (level == 0) { // 当括号回到顶级时，我们就找到了一个完整的职位区块
-                QString jobBlock = jobsContent.mid(lastPos + 1, i - lastPos - 1);
+    // 因为不再有嵌套括号，这个简单的正则现在可以完美工作了
+    QRegularExpression jobBlockRe("\\[(.*?)\\]", QRegularExpression::DotMatchesEverythingOption);
+    auto it = jobBlockRe.globalMatch(jobsContent);
 
-                // 第3步：从这个干净的职位区块中，解析出各个字段
-                Job currentJob;
+    while (it.hasNext()) {
+        QRegularExpressionMatch match = it.next();
+        QString block = match.captured(1);
+        Job currentJob;
 
-                currentJob.title = QRegularExpression("\"title\"\\s*=>\\s*\"([^\"]*)\"")
-                                       .match(jobBlock).captured(1).trimmed();
+        currentJob.title = QRegularExpression("\"title\"\\s*=>\\s*\"([^\"]*)\"")
+                               .match(block).captured(1).trimmed();
 
-                currentJob.quota = QRegularExpression("\"quota\"\\s*=>\\s*\"([^\"]*)\"")
-                                       .match(jobBlock).captured(1).trimmed();
+        currentJob.quota = QRegularExpression("\"quota\"\\s*=>\\s*\"([^\"]*)\"")
+                               .match(block).captured(1).trimmed();
 
-                const QString salaryText = QRegularExpression("\"salary\"\\s*=>\\s*\"([^\"]*)\"")
-                                               .match(jobBlock).captured(1).trimmed();
-                const QStringList parts = salaryText.split('-', Qt::SkipEmptyParts);
-                if (parts.size() == 2) {
-                    currentJob.salaryStart = parts.at(0).trimmed();
-                    currentJob.salaryEnd   = parts.at(1).trimmed();
-                } else {
-                    currentJob.salaryStart = salaryText;
-                    currentJob.salaryEnd.clear();
-                }
+        const QString salaryText = QRegularExpression("\"salary\"\\s*=>\\s*\"([^\"]*)\"")
+                                       .match(block).captured(1).trimmed();
+        const QStringList parts = salaryText.split('-', Qt::SkipEmptyParts);
+        if (parts.size() == 2) {
+            currentJob.salaryStart = parts.at(0).trimmed();
+            currentJob.salaryEnd   = parts.at(1).trimmed();
+        } else {
+            currentJob.salaryStart = salaryText;
+            currentJob.salaryEnd.clear();
+        }
 
-                const QString reqsSection = QRegularExpression("\"requirements\"\\s*=>\\s*\\[(.*?)\\]",
-                                                               QRegularExpression::DotMatchesEverythingOption)
-                                                .match(jobBlock).captured(1);
-                QRegularExpression reqItemRe("\"([^\"]*)\"");
-                auto reqIt = reqItemRe.globalMatch(reqsSection);
-                while (reqIt.hasNext()) {
-                    currentJob.requirements.append(reqIt.next().captured(1).trimmed());
-                }
+        // --- 关键修改：直接将 requirements 作为一整个字符串来解析 ---
+        currentJob.requirements = QRegularExpression("\"requirements\"\\s*=>\\s*\"(.*?)\"",
+                                                     QRegularExpression::DotMatchesEverythingOption)
+                                      .match(block).captured(1);
 
-                // 只有成功解析出标题的职位才被添加
-                if (!currentJob.title.isEmpty()) {
-                    m_jobs.append(currentJob);
-                }
-            }
+        if (!currentJob.title.isEmpty()) {
+            m_jobs.append(currentJob);
         }
     }
 }
@@ -151,13 +129,16 @@ void MainWindow::updateJobListWidget()
     ui->jobListWidget->blockSignals(false);
     if (!m_jobs.isEmpty())
         ui->jobListWidget->setCurrentRow(0);
-    clearForm();
-    ui->groupBox->setEnabled(false);
+    else {
+        clearForm();
+        ui->groupBox->setEnabled(false);
+    }
 }
 
 void MainWindow::on_jobListWidget_currentItemChanged(QListWidgetItem* current,
                                                      QListWidgetItem* previous)
 {
+    Q_UNUSED(previous);
     int index = ui->jobListWidget->row(current);
     if (index < 0) {
         ui->groupBox->setEnabled(false);
@@ -168,6 +149,7 @@ void MainWindow::on_jobListWidget_currentItemChanged(QListWidgetItem* current,
     populateForm(index);
 }
 
+// --- 已修改以适配新的 Job 结构 ---
 void MainWindow::populateForm(int index)
 {
     if (index < 0 || index >= m_jobs.count()) return;
@@ -176,12 +158,15 @@ void MainWindow::populateForm(int index)
     QObject::disconnect(ui->startsalaryEdit, nullptr, this, nullptr);
     QObject::disconnect(ui->endsalaryEdit, nullptr, this, nullptr);
     QObject::disconnect(ui->requirementEdit, nullptr, this, nullptr);
+
     const auto& job = m_jobs[index];
     ui->titleEdit->setText(job.title);
     ui->quotaEdit->setText(job.quota);
     ui->startsalaryEdit->setText(job.salaryStart);
     ui->endsalaryEdit->setText(job.salaryEnd);
-    ui->requirementEdit->setPlainText(job.requirements.join('\n'));
+    // 直接设置文本，因为 requirements 本身就是包含换行的字符串
+    ui->requirementEdit->setPlainText(job.requirements);
+
     connect(ui->titleEdit, &QLineEdit::textChanged, this, &MainWindow::on_titleEdit_textChanged);
     connect(ui->quotaEdit, &QLineEdit::textChanged, this, &MainWindow::on_quotaEdit_textChanged);
     connect(ui->startsalaryEdit, &QLineEdit::textChanged, this, &MainWindow::on_startsalaryEdit_textChanged);
@@ -217,10 +202,12 @@ void MainWindow::on_endsalaryEdit_textChanged(const QString &text) {
     int index = ui->jobListWidget->currentRow();
     if (index != -1) m_jobs[index].salaryEnd = text;
 }
+// --- 已修改以适配新的 Job 结构 ---
 void MainWindow::on_requirementEdit_textChanged() {
     int index = ui->jobListWidget->currentRow();
     if (index != -1) {
-        m_jobs[index].requirements = ui->requirementEdit->toPlainText().split('\n', Qt::SkipEmptyParts);
+        // 直接获取所有文本
+        m_jobs[index].requirements = ui->requirementEdit->toPlainText();
     }
 }
 
@@ -231,7 +218,7 @@ void MainWindow::on_addButton_clicked()
     newJob.salaryStart = "面议";
     newJob.salaryEnd = "";
     newJob.quota = "若干";
-    newJob.requirements << "请填写要求1" << "请填写要求2";
+    newJob.requirements = "请填写要求1\n请填写要求2";
     m_jobs.append(newJob);
     ui->jobListWidget->addItem(newJob.title);
     ui->jobListWidget->setCurrentRow(m_jobs.count() - 1);
@@ -251,6 +238,7 @@ void MainWindow::on_deleteButton_clicked()
     }
 }
 
+// --- 已修改以适配新的 Job 结构 ---
 void MainWindow::on_saveButton_clicked()
 {
     for (const auto& job : m_jobs) {
@@ -260,7 +248,6 @@ void MainWindow::on_saveButton_clicked()
         }
     }
 
-    // --- 已修正：使用美元符号 $ ---
     QString newJobsArrayString = "    $jobs = [\n";
     for (int i = 0; i < m_jobs.size(); ++i) {
         const auto& job = m_jobs[i];
@@ -270,15 +257,18 @@ void MainWindow::on_saveButton_clicked()
         } else {
             salaryString = job.salaryStart.trimmed();
         }
+
+        // --- 关键修改：处理 requirements 字符串中的特殊字符，以便能正确写入PHP文件 ---
+        QString escapedReqs = job.requirements;
+        escapedReqs.replace('\\', "\\\\"); // 先转义反斜杠
+        escapedReqs.replace('"', "\\\""); // 再转义双引号
+
         newJobsArrayString += "        [\n";
         newJobsArrayString += QString("            \"title\" => \"%1\",\n").arg(job.title);
         newJobsArrayString += QString("            \"quota\" => \"%1\",\n").arg(job.quota);
         newJobsArrayString += QString("            \"salary\" => \"%1\",\n").arg(salaryString);
-        newJobsArrayString += "            \"requirements\" => [\n";
-        for (const auto& req : job.requirements) {
-            newJobsArrayString += QString("                \"%1\",\n").arg(req);
-        }
-        newJobsArrayString += "            ]\n";
+        // 直接将处理过的多行字符串写入
+        newJobsArrayString += QString("            \"requirements\" => \"%1\"\n").arg(escapedReqs);
         newJobsArrayString += "        ]";
         if (i < m_jobs.size() - 1) {
             newJobsArrayString += ",\n";
