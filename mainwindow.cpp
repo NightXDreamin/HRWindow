@@ -76,6 +76,7 @@ void MainWindow::parsePhpContent(const QString& content)
 {
     m_jobs.clear();
 
+    // 第1步：和以前一样，先把包含所有职位的大数组 $jobs 的内容提取出来
     QRegularExpression jobsArrayRe("\\$jobs\\s*=\\s*\\[(.*)\\]\\s*;",
                                    QRegularExpression::DotMatchesEverythingOption);
     QRegularExpressionMatch arrayMatch = jobsArrayRe.match(content);
@@ -83,47 +84,58 @@ void MainWindow::parsePhpContent(const QString& content)
         QMessageBox::warning(this, "解析失败", "在文件中未找到 $jobs 数组。");
         return;
     }
-    QString jobsContent = arrayMatch.captured(1);
+    QString jobsContent = arrayMatch.captured(1).trimmed();
 
-    QRegularExpression jobBlockRe("\\[(.*?)\\]", QRegularExpression::DotMatchesEverythingOption);
-    auto it = jobBlockRe.globalMatch(jobsContent);
+    // 第2步 (核心修正)：不再使用简单的正则匹配，而是手动查找匹配的括号来分割每个职位区块
+    // 这样做可以完美解决 "requirements" 数组的嵌套问题
+    int level = 0;
+    int lastPos = 0;
+    for (int i = 0; i < jobsContent.length(); ++i) {
+        if (jobsContent[i] == '[') {
+            if (level == 0) {
+                lastPos = i; // 记录一个顶级区块的开始
+            }
+            level++;
+        } else if (jobsContent[i] == ']') {
+            level--;
+            if (level == 0) { // 当括号回到顶级时，我们就找到了一个完整的职位区块
+                QString jobBlock = jobsContent.mid(lastPos + 1, i - lastPos - 1);
 
-    while (it.hasNext()) {
-        QRegularExpressionMatch match = it.next();
-        QString block = match.captured(1);
+                // 第3步：从这个干净的职位区块中，解析出各个字段
+                Job currentJob;
 
-        Job currentJob;
+                currentJob.title = QRegularExpression("\"title\"\\s*=>\\s*\"([^\"]*)\"")
+                                       .match(jobBlock).captured(1).trimmed();
 
-        currentJob.title = QRegularExpression("\"title\"\\s*=>\\s*\"([^\"]*)\"")
-                               .match(block).captured(1).trimmed();
+                currentJob.quota = QRegularExpression("\"quota\"\\s*=>\\s*\"([^\"]*)\"")
+                                       .match(jobBlock).captured(1).trimmed();
 
-        currentJob.quota = QRegularExpression("\"quota\"\\s*=>\\s*\"([^\"]*)\"")
-                               .match(block).captured(1).trimmed();
+                const QString salaryText = QRegularExpression("\"salary\"\\s*=>\\s*\"([^\"]*)\"")
+                                               .match(jobBlock).captured(1).trimmed();
+                const QStringList parts = salaryText.split('-', Qt::SkipEmptyParts);
+                if (parts.size() == 2) {
+                    currentJob.salaryStart = parts.at(0).trimmed();
+                    currentJob.salaryEnd   = parts.at(1).trimmed();
+                } else {
+                    currentJob.salaryStart = salaryText;
+                    currentJob.salaryEnd.clear();
+                }
 
-        const QString salaryText = QRegularExpression("\"salary\"\\s*=>\\s*\"([^\"]*)\"")
-                                       .match(block).captured(1).trimmed();
-        const QStringList parts = salaryText.split('-', Qt::SkipEmptyParts);
-        if (parts.size() == 2) {
-            currentJob.salaryStart = parts.at(0).trimmed();
-            currentJob.salaryEnd   = parts.at(1).trimmed();
-        } else {
-            currentJob.salaryStart = salaryText;
-            currentJob.salaryEnd.clear();
+                const QString reqsSection = QRegularExpression("\"requirements\"\\s*=>\\s*\\[(.*?)\\]",
+                                                               QRegularExpression::DotMatchesEverythingOption)
+                                                .match(jobBlock).captured(1);
+                QRegularExpression reqItemRe("\"([^\"]*)\"");
+                auto reqIt = reqItemRe.globalMatch(reqsSection);
+                while (reqIt.hasNext()) {
+                    currentJob.requirements.append(reqIt.next().captured(1).trimmed());
+                }
+
+                // 只有成功解析出标题的职位才被添加
+                if (!currentJob.title.isEmpty()) {
+                    m_jobs.append(currentJob);
+                }
+            }
         }
-
-        const QString reqsSection = QRegularExpression("\"requirements\"\\s*=>\\s*\\[(.*?)\\]",
-                                                       QRegularExpression::DotMatchesEverythingOption)
-                                        .match(block).captured(1);
-        QRegularExpression reqItemRe("\"([^\"]*)\"");
-        auto reqIt = reqItemRe.globalMatch(reqsSection);
-
-        // --- 关键修正 ---
-        // 将循环条件从 it.hasNext() 改为 reqIt.hasNext()
-        while (reqIt.hasNext()) {
-            currentJob.requirements.append(reqIt.next().captured(1).trimmed());
-        }
-
-        m_jobs.append(currentJob);
     }
 }
 
