@@ -1,32 +1,30 @@
-// mainwindow.cpp (适配简化版PHP的最终版本)
+// mainwindow.cpp (v2.0 最终网络版)
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include <QFileDialog>
 #include <QMessageBox>
-#include <QRegularExpression>
-#include <QCoreApplication>
-#include <QDir>
-#include <QTextCodec>
+#include <QNetworkRequest>
+#include <QUrl>
+#include <QUrlQuery>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowTitle("PHP 招聘信息编辑器");
+    this->setWindowTitle("PHP 招聘信息编辑器 v2.0");
     ui->groupBox->setEnabled(false);
     ui->saveButton->setEnabled(false);
-    ui->addButton->setEnabled(false);
+    ui->addButton->setEnabled(true);  // 允许一开始就添加职位
     ui->deleteButton->setEnabled(false);
+    ui->fileGetButton->setText("刷新列表"); // 将按钮文本改为“刷新”
 
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString autoLoadPath = QDir(appDir).filePath("career.php");
+    m_networkManager = new QNetworkAccessManager(this);
+    connect(m_networkManager, &QNetworkAccessManager::finished, this, &MainWindow::onServerReply);
 
-    if (QFile::exists(autoLoadPath)) {
-        loadJobsFromFile(autoLoadPath);
-    } else {
-        ui->filePathLabel->setText("未在程序目录找到 career.php，请手动选择文件。");
-    }
+    loadJobsFromServer();
 }
 
 MainWindow::~MainWindow()
@@ -34,90 +32,136 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+// “刷新”按钮的逻辑
 void MainWindow::on_fileGetButton_clicked()
 {
-    QString filePath = QFileDialog::getOpenFileName(this, "选择 career.php 文件", "", "PHP Files (*.php)");
-    if (!filePath.isEmpty()) {
-        loadJobsFromFile(filePath);
-    }
+    loadJobsFromServer();
 }
 
-void MainWindow::loadJobsFromFile(const QString& filePath)
+// 保存按钮的逻辑：将数据发送到服务器
+void MainWindow::on_saveButton_clicked()
 {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        QMessageBox::critical(this, "错误", "无法打开文件:\n" + filePath);
+    // 简单的输入验证
+    for (const auto& job : m_jobs) {
+        if (job.title.trimmed().isEmpty()) {
+            QMessageBox::critical(this, "保存失败", "职位标题不能为空！");
+            return;
+        }
+    }
+
+    // --- 1. 将 m_jobs 数据转换为 JSON ---
+    QJsonArray jobsArray;
+    for (const auto& job : m_jobs) {
+        QJsonObject jobObj;
+        jobObj["title"] = job.title;
+        jobObj["quota"] = job.quota;
+        jobObj["salary"] = job.salaryEnd.isEmpty() ? job.salaryStart : job.salaryStart + " - " + job.salaryEnd;
+        jobObj["requirements"] = job.requirements;
+        jobsArray.append(jobObj);
+    }
+    QJsonDocument doc(jobsArray);
+    // 使用 Compact 参数生成不带换行的紧凑JSON字符串
+    QString jsonDataString = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+
+    // --- 2. 准备POST请求 ---
+    // 请将这里的URL替换成您自己的API地址
+    QUrl url("https://tianyuhuanbao.com/api.php");
+    QNetworkRequest request(url);
+    // 设置请求头，表明我们发送的是表单数据
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+
+    // --- 3. 准备要发送的POST数据 ---
+    QUrlQuery postData;
+    postData.addQueryItem("action", "save_jobs");
+    postData.addQueryItem("key", m_apiKey); // 使用我们定义好的密钥
+    postData.addQueryItem("data", jsonDataString);
+
+    // --- 4. 发送数据并更新UI ---
+    m_networkManager->post(request, postData.query(QUrl::FullyEncoded).toUtf8());
+    ui->statusbar->showMessage("正在保存到服务器...");
+    ui->saveButton->setEnabled(false); // 防止重复点击
+}
+
+
+void MainWindow::loadJobsFromServer()
+{
+    ui->statusbar->showMessage("正在从服务器加载数据...");
+    // 请将这里的URL替换成您自己的API地址
+    QUrl url("https://tianyuhuanbao.com/api.php?action=get_jobs");
+    QNetworkRequest request(url);
+    m_networkManager->get(request);
+}
+
+// 唯一的网络响应处理函数，能区分是“获取”的响应还是“保存”的响应
+void MainWindow::onServerReply(QNetworkReply *reply)
+{
+    // 首先，检查网络请求是否出错
+    if (reply->error() != QNetworkReply::NoError) {
+        QMessageBox::critical(this, "网络错误", "无法连接到服务器或API出错: " + reply->errorString());
+        ui->statusbar->showMessage("服务器连接失败！");
+        ui->saveButton->setEnabled(true); // 发生错误时，恢复保存按钮
+        reply->deleteLater();
         return;
     }
 
-    QByteArray fileBytes = file.readAll();
-    file.close();
-    m_originalFileContent = QTextCodec::codecForName("UTF-8")->toUnicode(fileBytes);
+    // 读取服务器返回的所有数据
+    QByteArray responseData = reply->readAll();
+    QJsonDocument doc = QJsonDocument::fromJson(responseData);
 
-    m_phpFilePath = filePath;
-    ui->filePathLabel->setText(m_phpFilePath);
+    // 根据请求的URL来判断这是哪个操作的响应
+    QString requestUrl = reply->request().url().toString();
 
-    parsePhpContent(m_originalFileContent);
-    updateJobListWidget();
-
-    ui->saveButton->setEnabled(true);
-    ui->addButton->setEnabled(true);
-    ui->deleteButton->setEnabled(true);
-}
-
-
-// --- 已重写为更简单、更稳健的版本 ---
-void MainWindow::parsePhpContent(const QString& content)
-{
-    m_jobs.clear();
-
-    QRegularExpression jobsArrayRe("\\$jobs\\s*=\\s*\\[(.*)\\]\\s*;",
-                                   QRegularExpression::DotMatchesEverythingOption);
-    QRegularExpressionMatch arrayMatch = jobsArrayRe.match(content);
-    if (!arrayMatch.hasMatch()) {
-        QMessageBox::warning(this, "解析失败", "在文件中未找到 $jobs 数组。");
-        return;
-    }
-    QString jobsContent = arrayMatch.captured(1);
-
-    // 因为不再有嵌套括号，这个简单的正则现在可以完美工作了
-    QRegularExpression jobBlockRe("\\[(.*?)\\]", QRegularExpression::DotMatchesEverythingOption);
-    auto it = jobBlockRe.globalMatch(jobsContent);
-
-    while (it.hasNext()) {
-        QRegularExpressionMatch match = it.next();
-        QString block = match.captured(1);
-        Job currentJob;
-
-        currentJob.title = QRegularExpression("\"title\"\\s*=>\\s*\"([^\"]*)\"")
-                               .match(block).captured(1).trimmed();
-
-        currentJob.quota = QRegularExpression("\"quota\"\\s*=>\\s*\"([^\"]*)\"")
-                               .match(block).captured(1).trimmed();
-
-        const QString salaryText = QRegularExpression("\"salary\"\\s*=>\\s*\"([^\"]*)\"")
-                                       .match(block).captured(1).trimmed();
-        const QStringList parts = salaryText.split('-', Qt::SkipEmptyParts);
-        if (parts.size() == 2) {
-            currentJob.salaryStart = parts.at(0).trimmed();
-            currentJob.salaryEnd   = parts.at(1).trimmed();
-        } else {
-            currentJob.salaryStart = salaryText;
-            currentJob.salaryEnd.clear();
-        }
-
-        // --- 关键修改：直接将 requirements 作为一整个字符串来解析 ---
-        currentJob.requirements = QRegularExpression("\"requirements\"\\s*=>\\s*\"(.*?)\"",
-                                                     QRegularExpression::DotMatchesEverythingOption)
-                                      .match(block).captured(1);
-
-        if (!currentJob.title.isEmpty()) {
-            m_jobs.append(currentJob);
+    // --- A. 如果是“获取职位”操作的响应 ---
+    if (requestUrl.contains("action=get_jobs")) {
+        if (doc.isObject()) {
+            m_jobs.clear();
+            QJsonObject rootObj = doc.object();
+            if (rootObj["status"].toString() == "success") {
+                QJsonArray jobsArray = rootObj["data"].toArray();
+                for (const QJsonValue &value : jobsArray) {
+                    QJsonObject jobObj = value.toObject();
+                    Job currentJob;
+                    currentJob.title = jobObj["title"].toString();
+                    currentJob.quota = jobObj["quota"].toString();
+                    currentJob.requirements = jobObj["requirements"].toString();
+                    const QString salaryText = jobObj["salary"].toString();
+                    const QStringList parts = salaryText.split('-', Qt::SkipEmptyParts);
+                    if (parts.size() == 2) {
+                        currentJob.salaryStart = parts.at(0).trimmed();
+                        currentJob.salaryEnd   = parts.at(1).trimmed();
+                    } else {
+                        currentJob.salaryStart = salaryText;
+                        currentJob.salaryEnd.clear();
+                    }
+                    m_jobs.append(currentJob);
+                }
+                updateJobListWidget();
+                ui->statusbar->showMessage("数据已从服务器加载。", 3000); // 消息显示3秒
+            } else {
+                QString errorMessage = rootObj["message"].toString();
+                QMessageBox::critical(this, "API错误", "服务器返回错误: " + errorMessage);
+                ui->statusbar->showMessage("API返回错误！");
+            }
         }
     }
+    // --- B. 如果是“保存职位”操作的响应 ---
+    else if (requestUrl.contains("api.php")) { // 简单判断
+        if (doc.isObject()) {
+            QJsonObject rootObj = doc.object();
+            if (rootObj["status"].toString() == "success") {
+                QMessageBox::information(this, "成功", "数据已成功保存到服务器！");
+                ui->statusbar->showMessage("保存成功！", 3000);
+            } else {
+                QString errorMessage = rootObj["message"].toString();
+                QMessageBox::critical(this, "保存失败", "服务器返回错误: " + errorMessage);
+                ui->statusbar->showMessage("保存失败！");
+            }
+        }
+        ui->saveButton->setEnabled(true); // 无论成功失败，恢复保存按钮
+    }
+
+    reply->deleteLater();
 }
-
-
 
 void MainWindow::updateJobListWidget()
 {
@@ -127,16 +171,19 @@ void MainWindow::updateJobListWidget()
         ui->jobListWidget->addItem(job.title);
     }
     ui->jobListWidget->blockSignals(false);
-    if (!m_jobs.isEmpty())
+    if (!m_jobs.isEmpty()) {
         ui->jobListWidget->setCurrentRow(0);
-    else {
+        ui->deleteButton->setEnabled(true);
+        ui->saveButton->setEnabled(true);
+    } else {
         clearForm();
         ui->groupBox->setEnabled(false);
+        ui->deleteButton->setEnabled(false);
+        ui->saveButton->setEnabled(false);
     }
 }
 
-void MainWindow::on_jobListWidget_currentItemChanged(QListWidgetItem* current,
-                                                     QListWidgetItem* previous)
+void MainWindow::on_jobListWidget_currentItemChanged(QListWidgetItem* current, QListWidgetItem* previous)
 {
     Q_UNUSED(previous);
     int index = ui->jobListWidget->row(current);
@@ -149,7 +196,6 @@ void MainWindow::on_jobListWidget_currentItemChanged(QListWidgetItem* current,
     populateForm(index);
 }
 
-// --- 已修改以适配新的 Job 结构 ---
 void MainWindow::populateForm(int index)
 {
     if (index < 0 || index >= m_jobs.count()) return;
@@ -158,15 +204,12 @@ void MainWindow::populateForm(int index)
     QObject::disconnect(ui->startsalaryEdit, nullptr, this, nullptr);
     QObject::disconnect(ui->endsalaryEdit, nullptr, this, nullptr);
     QObject::disconnect(ui->requirementEdit, nullptr, this, nullptr);
-
     const auto& job = m_jobs[index];
     ui->titleEdit->setText(job.title);
     ui->quotaEdit->setText(job.quota);
     ui->startsalaryEdit->setText(job.salaryStart);
     ui->endsalaryEdit->setText(job.salaryEnd);
-    // 直接设置文本，因为 requirements 本身就是包含换行的字符串
     ui->requirementEdit->setPlainText(job.requirements);
-
     connect(ui->titleEdit, &QLineEdit::textChanged, this, &MainWindow::on_titleEdit_textChanged);
     connect(ui->quotaEdit, &QLineEdit::textChanged, this, &MainWindow::on_quotaEdit_textChanged);
     connect(ui->startsalaryEdit, &QLineEdit::textChanged, this, &MainWindow::on_startsalaryEdit_textChanged);
@@ -185,10 +228,7 @@ void MainWindow::clearForm()
 
 void MainWindow::on_titleEdit_textChanged(const QString &text) {
     int index = ui->jobListWidget->currentRow();
-    if (index != -1) {
-        m_jobs[index].title = text;
-        ui->jobListWidget->currentItem()->setText(text);
-    }
+    if (index != -1) m_jobs[index].title = text;
 }
 void MainWindow::on_quotaEdit_textChanged(const QString &text) {
     int index = ui->jobListWidget->currentRow();
@@ -202,13 +242,9 @@ void MainWindow::on_endsalaryEdit_textChanged(const QString &text) {
     int index = ui->jobListWidget->currentRow();
     if (index != -1) m_jobs[index].salaryEnd = text;
 }
-// --- 已修改以适配新的 Job 结构 ---
 void MainWindow::on_requirementEdit_textChanged() {
     int index = ui->jobListWidget->currentRow();
-    if (index != -1) {
-        // 直接获取所有文本
-        m_jobs[index].requirements = ui->requirementEdit->toPlainText();
-    }
+    if (index != -1) m_jobs[index].requirements = ui->requirementEdit->toPlainText();
 }
 
 void MainWindow::on_addButton_clicked()
@@ -220,7 +256,7 @@ void MainWindow::on_addButton_clicked()
     newJob.quota = "若干";
     newJob.requirements = "请填写要求1\n请填写要求2";
     m_jobs.append(newJob);
-    ui->jobListWidget->addItem(newJob.title);
+    updateJobListWidget();
     ui->jobListWidget->setCurrentRow(m_jobs.count() - 1);
 }
 
@@ -236,59 +272,4 @@ void MainWindow::on_deleteButton_clicked()
         m_jobs.removeAt(index);
         updateJobListWidget();
     }
-}
-
-// --- 已修改以适配新的 Job 结构 ---
-void MainWindow::on_saveButton_clicked()
-{
-    for (const auto& job : m_jobs) {
-        if (job.title.trimmed().isEmpty() || job.quota.trimmed().isEmpty() || job.salaryStart.trimmed().isEmpty()) {
-            QMessageBox::critical(this, "保存失败", "存在职位信息不完整（标题、名额、起始薪资不能为空），请检查！");
-            return;
-        }
-    }
-
-    QString newJobsArrayString = "    $jobs = [\n";
-    for (int i = 0; i < m_jobs.size(); ++i) {
-        const auto& job = m_jobs[i];
-        QString salaryString;
-        if (!job.salaryEnd.trimmed().isEmpty()) {
-            salaryString = job.salaryStart.trimmed() + " - " + job.salaryEnd.trimmed();
-        } else {
-            salaryString = job.salaryStart.trimmed();
-        }
-
-        // --- 关键修改：处理 requirements 字符串中的特殊字符，以便能正确写入PHP文件 ---
-        QString escapedReqs = job.requirements;
-        escapedReqs.replace('\\', "\\\\"); // 先转义反斜杠
-        escapedReqs.replace('"', "\\\""); // 再转义双引号
-
-        newJobsArrayString += "        [\n";
-        newJobsArrayString += QString("            \"title\" => \"%1\",\n").arg(job.title);
-        newJobsArrayString += QString("            \"quota\" => \"%1\",\n").arg(job.quota);
-        newJobsArrayString += QString("            \"salary\" => \"%1\",\n").arg(salaryString);
-        // 直接将处理过的多行字符串写入
-        newJobsArrayString += QString("            \"requirements\" => \"%1\"\n").arg(escapedReqs);
-        newJobsArrayString += "        ]";
-        if (i < m_jobs.size() - 1) {
-            newJobsArrayString += ",\n";
-        }
-    }
-    newJobsArrayString += "\n    ];";
-
-    QString newFileContent = m_originalFileContent;
-    QRegularExpression jobsArrayRegex(R"(\$jobs\s*=\s*\[.*\];)", QRegularExpression::DotMatchesEverythingOption);
-    newFileContent.replace(jobsArrayRegex, newJobsArrayString);
-
-    QFile file(m_phpFilePath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-        QMessageBox::critical(this, "保存失败", "无法写入文件！请检查文件是否被占用或权限不足。");
-        return;
-    }
-    QTextStream out(&file);
-    out << newFileContent;
-    file.close();
-
-    m_originalFileContent = newFileContent;
-    QMessageBox::information(this, "成功", "招聘信息已成功保存到\n" + m_phpFilePath);
 }

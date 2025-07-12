@@ -1,13 +1,14 @@
-// mainwindow.h
+// mainwindow.h (v2.0 最终网络版)
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QMainWindow>
 #include <QString>
-#include <QStringList>
 #include <QListWidgetItem>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 
-// 定义职位数据结构，保持不变
+// Job 结构体保持不变
 struct Job {
     QString title;
     QString quota;
@@ -29,36 +30,39 @@ public:
     ~MainWindow();
 
 private slots:
-    // --- 槽函数已根据新UI的 objectName 更新 ---
-    void on_fileGetButton_clicked(); // 对应 “选择文件” 按钮
-    void on_saveButton_clicked();    // 对应 “保存文件” 按钮
-    void on_addButton_clicked();     // 对应 “增加职位” 按钮
-    void on_deleteButton_clicked();  // 对应 “删除职位” 按钮
+    void on_fileGetButton_clicked(); // 该按钮功能将变为“刷新”
+    void on_saveButton_clicked();
+    void on_addButton_clicked();
+    void on_deleteButton_clicked();
 
-    // 当列表中的选中项改变时触发
-    void on_jobListWidget_currentItemChanged(QListWidgetItem* current,
-                                             QListWidgetItem* previous);
+    void on_jobListWidget_currentItemChanged(QListWidgetItem* current, QListWidgetItem* previous);
 
-    // 当编辑框内容改变时，自动更新数据
     void on_titleEdit_textChanged(const QString &text);
     void on_quotaEdit_textChanged(const QString &text);
-    void on_startsalaryEdit_textChanged(const QString &text); // 对应起始薪资输入框
-    void on_endsalaryEdit_textChanged(const QString &text);   // 对应结束薪资输入框
-    void on_requirementEdit_textChanged(); // 对应 QPlainTextEdit
+    void on_startsalaryEdit_textChanged(const QString &text);
+    void on_endsalaryEdit_textChanged(const QString &text);
+    void on_requirementEdit_textChanged();
 
+    // 唯一的网络响应处理槽函数
+    void onServerReply(QNetworkReply *reply);
 
 private:
     Ui::MainWindow *ui;
-
     QList<Job> m_jobs;
-    QString m_originalFileContent;
-    QString m_phpFilePath;
+    QNetworkAccessManager *m_networkManager;
 
-    // 核心函数声明保持不变
-    void parsePhpContent(const QString& content);
+    // --- 新增：在这里存放您的API密钥，方便管理 ---
+    const QString m_apiKey = "JingJing8859!";
+
+    // 函数声明
     void populateForm(int index);
     void updateJobListWidget();
     void clearForm();
-    void loadJobsFromFile(const QString& filePath);
+    void loadJobsFromServer();
+
+    // 不再需要以下成员和函数：
+    // QString m_originalFileContent;
+    // QString m_phpFilePath;
+    // parsePhpContent()
 };
 #endif // MAINWINDOW_H
