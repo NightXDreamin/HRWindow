@@ -24,23 +24,8 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>-1</number>
     </property>
-    <widget class="QWidget" name="jobTab">
-     <attribute name="title">
-      <string>职位管理</string>
-     </attribute>
-    </widget>
-    <widget class="QWidget" name="productTab">
-     <attribute name="title">
-      <string>产品管理</string>
-     </attribute>
-    </widget>
-    <widget class="QWidget" name="caseTab">
-     <attribute name="title">
-      <string>案例管理</string>
-     </attribute>
-    </widget>
    </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>

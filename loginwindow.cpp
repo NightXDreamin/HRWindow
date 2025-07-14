@@ -51,8 +51,7 @@ void LoginWindow::on_passwordInputButton_clicked()
     ui->noticeTxt->setText("正在登录，请稍候...");
 
     // --- 准备网络请求 ---
-    // !!! 请将这里的URL替换成您自己真实的api.php地址 !!!
-    QUrl url("http://tianyuhuanbao.com/api.php");
+    QUrl url("https://tianyuhuanbao.com/api.php");
     QNetworkRequest request(url);
 
     // 设置请求头，表明我们发送的是表单数据
@@ -70,6 +69,19 @@ void LoginWindow::on_passwordInputButton_clicked()
 // 当服务器返回响应时，此函数被自动调用
 void LoginWindow::onLoginReply(QNetworkReply *reply)
 {
+
+    QByteArray raw = reply->readAll();
+    qDebug() << "[LoginReply] raw =" << raw;
+    // — 然后再做 JSON 解析 —
+    QJsonParseError err;
+    QJsonDocument doc = QJsonDocument::fromJson(raw, &err);
+    if (err.error != QJsonParseError::NoError) {
+        QMessageBox::critical(this, "JSON 解析错误",
+                              err.errorString() + "\n\n原始数据:\n" + QString::fromUtf8(raw));
+        reply->deleteLater();
+        return;
+    }
+
     // 首先，恢复UI，让用户可以重新输入
     ui->passwordInputLine->setEnabled(true);
     ui->passwordInputButton->setEnabled(true);
@@ -83,12 +95,7 @@ void LoginWindow::onLoginReply(QNetworkReply *reply)
     }
 
     // 读取服务器返回的JSON数据
-    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-    if (!doc.isObject()) {
-        QMessageBox::critical(this, "响应错误", "服务器返回了无效的数据格式。");
-        reply->deleteLater();
-        return;
-    }
+
 
     // 解析JSON，检查登录状态
     QJsonObject obj = doc.object();
