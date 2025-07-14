@@ -1,18 +1,28 @@
-#include "mainwindow.h"  // 包含您的主窗口头文件
-#include <QApplication>    // 包含Qt应用程序的核心类
+// main.cpp
+
+#include "mainwindow.h"
+#include "loginwindow.h" // <-- 包含我们新创建的登录对话框的头文件
+#include <QApplication>
 
 int main(int argc, char *argv[])
 {
-    // 1. 创建一个Qt应用程序对象，这是每个Qt程序都必须有的
     QApplication a(argc, argv);
 
-    // 2. 创建您的主窗口的一个实例
-    MainWindow w;
+    // 1. 先创建并显示登录对话框
+    LoginDialog loginDialog;
+    // 使用 exec() 以模态方式显示对话框，程序会在这里暂停，直到对话框被关闭
+    int result = loginDialog.exec();
 
-    // 3. 显示主窗口
-    w.show();
-
-    // 4. 启动应用程序的事件循环，并等待程序退出
-    //    程序会在这里一直运行，直到用户关闭窗口
-    return a.exec();
+    // 2. 检查登录对话框的返回结果
+    if (result == QDialog::Accepted) {
+        // 如果用户点击了“登录”并登录成功 (我们稍后会实现这个逻辑)
+        // 那么就创建并显示主窗口
+        MainWindow w;
+        w.show();
+        // 启动主程序的事件循环
+        return a.exec();
+    } else {
+        // 如果用户关闭了对话框或点击了“取消”，则直接退出程序
+        return 0;
+    }
 }

@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QFile>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -95,24 +96,27 @@ void MainWindow::loadJobsFromServer()
 // 唯一的网络响应处理函数，能区分是“获取”的响应还是“保存”的响应
 void MainWindow::onServerReply(QNetworkReply *reply)
 {
-    // 首先，检查网络请求是否出错
+    // 首先，检查网络请求自身是否出错
     if (reply->error() != QNetworkReply::NoError) {
         QMessageBox::critical(this, "网络错误", "无法连接到服务器或API出错: " + reply->errorString());
         ui->statusbar->showMessage("服务器连接失败！");
-        ui->saveButton->setEnabled(true); // 发生错误时，恢复保存按钮
+        // --- 修正：检查 reply->operation() ---
+        if(reply->operation() == QNetworkAccessManager::PostOperation) {
+            ui->saveButton->setEnabled(true); // 如果是保存操作失败，恢复按钮
+        }
         reply->deleteLater();
         return;
     }
 
-    // 读取服务器返回的所有数据
+    // 读取服务器返回的所有原始数据
     QByteArray responseData = reply->readAll();
-    QJsonDocument doc = QJsonDocument::fromJson(responseData);
 
-    // 根据请求的URL来判断这是哪个操作的响应
-    QString requestUrl = reply->request().url().toString();
+    // --- 修正：使用 reply->operation() 来判断请求类型 ---
+    QNetworkAccessManager::Operation operation = reply->operation();
 
-    // --- A. 如果是“获取职位”操作的响应 ---
-    if (requestUrl.contains("action=get_jobs")) {
+    // --- A. 如果是“获取职位”(GET)操作的响应 ---
+    if (operation == QNetworkAccessManager::GetOperation) {
+        QJsonDocument doc = QJsonDocument::fromJson(responseData);
         if (doc.isObject()) {
             m_jobs.clear();
             QJsonObject rootObj = doc.object();
@@ -136,28 +140,35 @@ void MainWindow::onServerReply(QNetworkReply *reply)
                     m_jobs.append(currentJob);
                 }
                 updateJobListWidget();
-                ui->statusbar->showMessage("数据已从服务器加载。", 3000); // 消息显示3秒
+                ui->statusbar->showMessage("数据已从服务器加载。", 3000);
             } else {
                 QString errorMessage = rootObj["message"].toString();
-                QMessageBox::critical(this, "API错误", "服务器返回错误: " + errorMessage);
+                QMessageBox::critical(this, "API错误", "获取数据失败: " + errorMessage);
                 ui->statusbar->showMessage("API返回错误！");
             }
+        } else { // 如果返回的不是一个JSON对象
+            QMessageBox::critical(this, "数据错误", "从服务器返回的数据格式无效 (非JSON Object)。");
         }
     }
-    // --- B. 如果是“保存职位”操作的响应 ---
-    else if (requestUrl.contains("api.php")) { // 简单判断
-        if (doc.isObject()) {
-            QJsonObject rootObj = doc.object();
-            if (rootObj["status"].toString() == "success") {
-                QMessageBox::information(this, "成功", "数据已成功保存到服务器！");
-                ui->statusbar->showMessage("保存成功！", 3000);
-            } else {
-                QString errorMessage = rootObj["message"].toString();
-                QMessageBox::critical(this, "保存失败", "服务器返回错误: " + errorMessage);
-                ui->statusbar->showMessage("保存失败！");
-            }
+    // --- B. 如果是“保存职位”(POST)操作的响应 ---
+    else if (operation == QNetworkAccessManager::PostOperation) {
+        QString logFilePath = QCoreApplication::applicationDirPath() + "/server_response_log.txt";
+        QFile logFile(logFilePath);
+        if (logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            logFile.write(responseData);
+            logFile.close();
+            QMessageBox::information(this, "收到响应",
+                                     "已收到服务器的“保存”操作响应！\n\n"
+                                     "详细的调试日志已保存到程序目录下的\n"
+                                     "server_response_log.txt 文件中，请查看。");
+        } else {
+            QMessageBox::warning(this, "日志写入失败",
+                                 "收到服务器响应，但无法将调试日志写入本地文件。\n"
+                                 "尝试写入路径: " + logFilePath);
         }
-        ui->saveButton->setEnabled(true); // 无论成功失败，恢复保存按钮
+
+        ui->saveButton->setEnabled(true);
+        ui->statusbar->clearMessage();
     }
 
     reply->deleteLater();
