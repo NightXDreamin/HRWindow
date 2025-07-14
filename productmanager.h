@@ -2,6 +2,7 @@
 #define PRODUCTMANAGER_H
 
 #include <QWidget>
+#include "datastructures.h"
 
 class ProductManager : public QWidget
 {

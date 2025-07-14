@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>jobmanager</class>
- <widget class="QWidget" name="jobmanager">
+ <class>JobManager</class>
+ <widget class="QWidget" name="JobManager">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -295,7 +295,7 @@
       <item>
        <layout class="QHBoxLayout" name="filePathLayout">
         <item>
-         <widget class="QLabel" name="filePathLabel">
+         <widget class="QLabel" name="labelStatus">
           <property name="text">
            <string>尚未加载</string>
           </property>

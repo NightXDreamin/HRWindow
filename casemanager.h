@@ -2,9 +2,10 @@
 #define CASEMANAGER_H
 
 #include <QWidget>
+#include "datastructures.h"
 
 namespace Ui {
-class caseManager;
+class CaseManager;
 }
 
 class casemanager : public QWidget
@@ -16,7 +17,7 @@ public:
     ~casemanager();
 
 private:
-    Ui::caseManager *ui;
+    Ui::CaseManager *ui;
 };
 
 #endif // CASEMANAGER_H

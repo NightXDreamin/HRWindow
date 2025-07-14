@@ -20,6 +20,7 @@ SOURCES += \
 
 HEADERS += \
     casemanager.h \
+    datastructures.h \
     jobmanager.h \
     loginwindow.h \
     mainwindow.h \

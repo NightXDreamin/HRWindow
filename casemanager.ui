@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>casemanager</class>
- <widget class="QWidget" name="casemanager">
+ <class>CaseManager</class>
+ <widget class="QWidget" name="CaseManager">
   <property name="geometry">
    <rect>
     <x>0</x>
