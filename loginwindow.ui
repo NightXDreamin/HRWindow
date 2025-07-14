@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>loginwindow</class>
- <widget class="QWidget" name="loginwindow">
+ <class>LoginWindow</class>
+ <widget class="QWidget" name="LoginWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -64,7 +64,7 @@
        </spacer>
       </item>
       <item>
-       <widget class="QPushButton" name="passwordinputButton">
+       <widget class="QPushButton" name="passwordInputButton">
         <property name="text">
          <string>输入</string>
         </property>

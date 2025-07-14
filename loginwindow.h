@@ -3,8 +3,10 @@
 #define LOGINWINDOW_H
 
 #include <QDialog>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
+
+// 向前声明，避免在头文件中引入过多的头文件
+class QNetworkAccessManager;
+class QNetworkReply;
 
 namespace Ui {
 class LoginWindow;
@@ -23,7 +25,7 @@ public:
     QString username() const;
 
 private slots:
-    // 响应“输入”按钮的点击事件 (请确保您的按钮objectName是 passwordInputButton)
+    // 响应“登录”按钮的点击事件 (请确保您的按钮objectName是 passwordInputButton)
     void on_passwordInputButton_clicked();
 
     // 处理服务器返回的登录结果

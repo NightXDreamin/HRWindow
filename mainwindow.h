@@ -52,7 +52,7 @@ private:
     QNetworkAccessManager *m_networkManager;
 
     // --- 新增：在这里存放您的API密钥，方便管理 ---
-    const QString m_apiKey = "JingJing8859!";
+    const QString m_apiKey = "";
 
     // 函数声明
     void populateForm(int index);
