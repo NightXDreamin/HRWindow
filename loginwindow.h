@@ -25,10 +25,8 @@ public:
     QString username() const;
 
 private slots:
-    // 响应“登录”按钮的点击事件 (请确保您的按钮objectName是 passwordInputButton)
     void on_passwordInputButton_clicked();
-
-    // 处理服务器返回的登录结果
+    void on_forceLogoutButton_clicked();
     void onLoginReply(QNetworkReply *reply);
 
 private:
