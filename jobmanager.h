@@ -16,6 +16,10 @@ class JobManager : public QWidget
 {
     Q_OBJECT
 
+public slots:
+    // [新功能] 一个公共的槽函数，用于接收从MainWindow传递过来的最新职位数据
+    void updateData(const QList<Job> &jobs);
+
 public:
     explicit JobManager(const QString &sessionKey, QWidget *parent = nullptr);
     ~JobManager();

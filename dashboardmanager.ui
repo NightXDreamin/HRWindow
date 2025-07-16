@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DashboardManager</class>
+ <widget class="QWidget" name="DashboardManager">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="QWidget" name="gridLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>-1</x>
+     <y>-1</y>
+     <width>801</width>
+     <height>601</height>
+    </rect>
+   </property>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="1">
+     <layout class="QVBoxLayout" name="productsBlock">
+      <item>
+       <widget class="QLabel" name="productsTxt">
+        <property name="text">
+         <string>产品数量</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="productsCountLabel">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="1" column="0">
+     <layout class="QVBoxLayout" name="quotaBlock">
+      <item>
+       <widget class="QLabel" name="quotaTxt">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="quotaCountLabel">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="1" column="1">
+     <layout class="QVBoxLayout" name="jobsBlock">
+      <item>
+       <widget class="QLabel" name="jobsTxt">
+        <property name="text">
+         <string>职位数量</string>
+        </property>
+        <property name="textFormat">
+         <enum>Qt::TextFormat::AutoText</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="jobsCountLabel">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="0">
+     <layout class="QVBoxLayout" name="caseBlock">
+      <item>
+       <widget class="QLabel" name="caseTxt">
+        <property name="text">
+         <string>案例数量</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="casesCountLabel">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="2">
+     <layout class="QVBoxLayout" name="serverTimeBlock">
+      <item>
+       <widget class="QLabel" name="serverTimeTxt">
+        <property name="text">
+         <string>服务器运行时间</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="serverTimeLabel">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="1" column="2">
+     <layout class="QVBoxLayout" name="controlBlock">
+      <item>
+       <widget class="QPushButton" name="refreshButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>80</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>刷新数据</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_8">
+        <item>
+         <widget class="QLabel" name="currentAddressTxt">
+          <property name="text">
+           <string>当前网站地址</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="addressBlock">
+          <item>
+           <widget class="QLineEdit" name="addressLine">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="addressSetting">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>更新地址</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

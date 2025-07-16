@@ -31,6 +31,13 @@ struct CaseStudy {
     QStringList imageUrls;
 };
 
+struct DashboardStats {
+    int totalJobsCount = 0;
+    int totalProductsCount = 0;
+    int totalCasesCount = 0;
+    int totalRecruitmentQuota = 0;
+    QString serverTime;
+};
 
 // Q_DECLARE_METATYPE(Job);      // 如果您需要在QVariant中使用这些结构体，
 // Q_DECLARE_METATYPE(Product);   // 就取消这些行的注释。目前我们还用不到。

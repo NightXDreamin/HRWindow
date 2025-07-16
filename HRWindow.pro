@@ -12,6 +12,7 @@ CONFIG += c++17
 
 SOURCES += \
     casemanager.cpp \
+    dashboardmanager.cpp \
     jobmanager.cpp \
     loginwindow.cpp \
     main.cpp \
@@ -20,6 +21,7 @@ SOURCES += \
 
 HEADERS += \
     casemanager.h \
+    dashboardmanager.h \
     datastructures.h \
     jobmanager.h \
     loginwindow.h \
@@ -38,6 +40,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 FORMS += \
     casemanager.ui \
+    dashboardmanager.ui \
     jobmanager.ui \
     loginwindow.ui \
     mainwindow.ui \

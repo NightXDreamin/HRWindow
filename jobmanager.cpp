@@ -264,3 +264,11 @@ void JobManager::on_requirementEdit_textChanged() {
     int index = ui->jobListWidget->currentRow();
     if (index != -1) m_jobs[index].requirements = ui->requirementEdit->toPlainText();
 }
+
+void JobManager::updateData(const QList<Job> &jobs)
+{
+    // 用从主窗口接收到的新数据，更新自己的数据列表
+    m_jobs = jobs;
+    // 调用自己的函数来刷新UI界面
+    updateJobListWidget();
+}

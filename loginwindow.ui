@@ -73,7 +73,7 @@
      </layout>
     </item>
     <item>
-     <widget class="QPushButton" name="pushButton">
+     <widget class="QPushButton" name="forceLogoutButton">
       <property name="text">
        <string>无法登录？点我</string>
       </property>
