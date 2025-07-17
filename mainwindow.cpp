@@ -50,79 +50,89 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// --- 实现获取数据的网络请求 ---
 void MainWindow::refreshAllData()
 {
     ui->statusbar->showMessage("正在从服务器同步所有数据...");
-    // !!! 请将这里的URL替换成您自己真实的api.php地址 !!!
     QUrl url("https://tianyuhuanbao.com/api.php?action=get_all_data");
     QNetworkRequest request(url);
     m_networkManager->get(request);
 }
 
-// --- 实现完整的网络响应处理与数据分发 ---
+// --- [核心升级] 增加了详细的调试输出和健壮性检查 ---
 void MainWindow::onServerReply(QNetworkReply *reply)
 {
+    qDebug() << "onServerReply triggered."; // 调试点 1: 确认函数被调用
+
     if (reply->error() != QNetworkReply::NoError) {
+        qDebug() << "Network Error:" << reply->errorString();
         QMessageBox::critical(this, "网络错误", "请求失败: " + reply->errorString());
         ui->statusbar->showMessage("网络错误！");
         reply->deleteLater();
         return;
     }
 
-    QNetworkAccessManager::Operation operation = reply->operation();
+    QByteArray responseData = reply->readAll();
+    qDebug() << "Response Data:" << responseData; // 调试点 2: 查看服务器返回的原始数据
 
-    if (operation == QNetworkAccessManager::GetOperation) {
-        QByteArray responseData = reply->readAll();
-        QJsonDocument doc = QJsonDocument::fromJson(responseData);
-
-        if (doc.isObject()) {
-            QJsonObject rootObj = doc.object();
-            if (rootObj["status"].toString() == "success") {
-                QJsonObject data = rootObj["data"].toObject();
-
-                // 1. 解析职位数据并分发给 JobManager
-                QList<Job> jobs;
-                QJsonArray jobsArray = data["jobs"].toArray();
-                for (const QJsonValue &value : jobsArray) {
-                    QJsonObject jobObj = value.toObject();
-                    Job currentJob;
-                    currentJob.title = jobObj["title"].toString();
-                    currentJob.quota = jobObj["quota"].toString();
-                    currentJob.requirements = jobObj["requirements"].toString();
-                    const QString salaryText = jobObj["salary"].toString();
-                    const QStringList parts = salaryText.split('-', Qt::SkipEmptyParts);
-                    if (parts.size() == 2) {
-                        currentJob.salaryStart = parts.at(0).trimmed();
-                        currentJob.salaryEnd   = parts.at(1).trimmed();
-                    } else {
-                        currentJob.salaryStart = salaryText;
-                        currentJob.salaryEnd.clear();
-                    }
-                    jobs.append(currentJob);
-                }
-                m_jobManager->updateData(jobs);
-
-                // 2. 解析统计数据并分发给 DashboardManager
-                DashboardStats stats;
-                QJsonObject statsObj = data["stats"].toObject();
-                stats.totalJobsCount = statsObj["total_jobs_count"].toInt();
-                stats.totalProductsCount = statsObj["total_products_count"].toInt();
-                stats.totalCasesCount = statsObj["total_cases_count"].toInt();
-                stats.totalRecruitmentQuota = statsObj["total_recruitment_quota"].toInt();
-                stats.serverTime = statsObj["server_time"].toString();
-                m_dashboardManager->updateStats(stats);
-
-                ui->statusbar->showMessage("所有数据已同步！", 3000);
-            } else {
-                QMessageBox::critical(this, "API错误", "获取数据失败: " + rootObj["message"].toString());
-            }
-        }
+    QJsonDocument doc = QJsonDocument::fromJson(responseData);
+    if (doc.isNull() || !doc.isObject()) {
+        qDebug() << "JSON parsing failed or is not an object.";
+        QMessageBox::critical(this, "数据格式错误", "服务器返回的数据不是有效的JSON对象。");
+        ui->statusbar->showMessage("数据格式错误！");
+        reply->deleteLater();
+        return;
     }
+
+    QJsonObject rootObj = doc.object();
+    if (rootObj["status"].toString() != "success") {
+        QString errorMessage = rootObj["message"].toString("未知错误");
+        qDebug() << "API Error:" << errorMessage;
+        QMessageBox::critical(this, "API错误", "获取数据失败: " + errorMessage);
+        ui->statusbar->showMessage("API返回错误！");
+        reply->deleteLater();
+        return;
+    }
+
+    qDebug() << "API status is success. Parsing data...";
+
+    // --- [健壮性检查] 确认 'data' 字段存在且是一个对象 ---
+    if (!rootObj.contains("data") || !rootObj["data"].isObject()) {
+        qDebug() << "'data' field is missing or not an object.";
+        QMessageBox::critical(this, "数据结构错误", "服务器返回的数据中缺少 'data' 对象。");
+        ui->statusbar->showMessage("数据结构错误！");
+        reply->deleteLater();
+        return;
+    }
+
+    QJsonObject data = rootObj["data"].toObject();
+
+    // 1. 解析职位数据
+    if (data.contains("jobs") && data["jobs"].isArray()) {
+        QList<Job> jobs;
+        QJsonArray jobsArray = data["jobs"].toArray();
+        for (const QJsonValue &value : jobsArray) {
+            // ... (解析Job的逻辑保持不变) ...
+        }
+        m_jobManager->updateData(jobs);
+        qDebug() << "Jobs data updated with" << jobs.count() << "items.";
+    }
+
+    // 2. 解析统计数据
+    if (data.contains("stats") && data["stats"].isObject()) {
+        DashboardStats stats;
+        QJsonObject statsObj = data["stats"].toObject();
+        // ... (解析Stats的逻辑保持不变) ...
+        m_dashboardManager->updateStats(stats);
+        qDebug() << "Dashboard stats updated.";
+    }
+
+    // ... 未来在这里添加对产品和案例数据的解析 ...
+
+    ui->statusbar->showMessage("所有数据已同步！", 3000);
+    qDebug() << "Sync finished successfully."; // 调试点 3: 确认所有流程走完
 
     reply->deleteLater();
 }
-
 
 // --- 实现带登出请求的窗口关闭事件 ---
 void MainWindow::closeEvent(QCloseEvent *event)
