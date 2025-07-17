@@ -63,7 +63,6 @@ void MainWindow::refreshAllData()
 // --- 实现完整的网络响应处理与数据分发 ---
 void MainWindow::onServerReply(QNetworkReply *reply)
 {
-    // 检查网络错误
     if (reply->error() != QNetworkReply::NoError) {
         QMessageBox::critical(this, "网络错误", "请求失败: " + reply->errorString());
         ui->statusbar->showMessage("网络错误！");
@@ -71,10 +70,8 @@ void MainWindow::onServerReply(QNetworkReply *reply)
         return;
     }
 
-    // 根据操作类型，决定如何处理响应
     QNetworkAccessManager::Operation operation = reply->operation();
 
-    // A. 处理“获取所有数据” (GET) 的响应
     if (operation == QNetworkAccessManager::GetOperation) {
         QByteArray responseData = reply->readAll();
         QJsonDocument doc = QJsonDocument::fromJson(responseData);
@@ -84,7 +81,7 @@ void MainWindow::onServerReply(QNetworkReply *reply)
             if (rootObj["status"].toString() == "success") {
                 QJsonObject data = rootObj["data"].toObject();
 
-                // 1. 解析职位数据并传递给 JobManager
+                // 1. 解析职位数据并分发给 JobManager
                 QList<Job> jobs;
                 QJsonArray jobsArray = data["jobs"].toArray();
                 for (const QJsonValue &value : jobsArray) {
@@ -106,7 +103,7 @@ void MainWindow::onServerReply(QNetworkReply *reply)
                 }
                 m_jobManager->updateData(jobs);
 
-                // 2. 解析统计数据并传递给 DashboardManager
+                // 2. 解析统计数据并分发给 DashboardManager
                 DashboardStats stats;
                 QJsonObject statsObj = data["stats"].toObject();
                 stats.totalJobsCount = statsObj["total_jobs_count"].toInt();
@@ -117,16 +114,10 @@ void MainWindow::onServerReply(QNetworkReply *reply)
                 m_dashboardManager->updateStats(stats);
 
                 ui->statusbar->showMessage("所有数据已同步！", 3000);
-
             } else {
                 QMessageBox::critical(this, "API错误", "获取数据失败: " + rootObj["message"].toString());
             }
         }
-    }
-    // B. 处理“登出” (POST) 的响应
-    else if (operation == QNetworkAccessManager::PostOperation) {
-        // 登出操作通常无需处理返回信息，我们只需要知道它被发送了即可。
-        // （reply在这里会被自动释放）
     }
 
     reply->deleteLater();

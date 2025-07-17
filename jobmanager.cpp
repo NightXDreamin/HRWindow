@@ -1,193 +1,221 @@
 // jobmanager.cpp
 #include "jobmanager.h"
-#include "ui_jobmanager.h" // 确保这里是小写的 "ui_jobmanager.h"
+#include "ui_jobmanager.h"
 
-// 引入所有需要的Qt类
 #include <QMessageBox>
 #include <QNetworkRequest>
+#include <QNetworkReply>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QListWidgetItem>
+#include <QLabel>
+#include <QTimer>
 
-// JobManager 构造函数
 JobManager::JobManager(const QString &sessionKey, QWidget *parent) :
     QWidget(parent),
-    ui(new Ui::JobManager), // 使用大写的 Ui::JobManager
-    m_sessionKey(sessionKey) // 保存从主窗口传递过来的会话密钥
+    ui(new Ui::JobManager),
+    m_networkManager(new QNetworkAccessManager(this)),
+    m_sessionKey(sessionKey)
 {
     ui->setupUi(this);
 
-    // 初始化网络管理器，并连接信号
-    m_networkManager = new QNetworkAccessManager(this);
-    connect(m_networkManager, &QNetworkAccessManager::finished, this, &JobManager::onServerReply);
+    // 只有“保存”操作需要走网络
+    connect(m_networkManager, &QNetworkAccessManager::finished,
+            this,            &JobManager::onSaveReply);
 
-    // 初始状态设置
+    // 初始状态：按钮禁用，表单清空
     ui->groupBox->setEnabled(false);
     ui->deleteButton->setEnabled(false);
     ui->saveButton->setEnabled(false);
-
-    // 程序一加载就从服务器获取职位列表
-    loadJobsFromServer();
 }
 
-// JobManager 析构函数
 JobManager::~JobManager()
 {
     delete ui;
 }
 
-// --- 网络请求逻辑 ---
-
-void JobManager::loadJobsFromServer()
+// ----------------------------------------------------------------
+// | 由 MainWindow 驱动，给新的职位列表数据，然后刷新界面       |
+// ----------------------------------------------------------------
+void JobManager::updateData(const QList<Job> &jobs)
 {
-    ui->labelStatus->setText("正在从服务器加载职位列表...");
-    QUrl url("http://tianyuhuanbao.com/api.php?action=get_jobs"); // 请替换成您的真实URL
-    QNetworkRequest request(url);
-    m_networkManager->get(request);
+    m_jobs = jobs;
+    updateJobListWidget();
 }
 
-// 当“刷新”按钮被点击时
-void JobManager::on_refreshButton_clicked()
+// ----------------------------------------------------------------
+// | “添加” / “删除” 及编辑框改动，只更新本地 m_jobs 和界面         |
+// ----------------------------------------------------------------
+void JobManager::on_addButton_clicked()
 {
-    loadJobsFromServer();
+    Job j;
+    j.title = "新职位 - 请修改";
+    j.quota = "若干";
+    j.salaryStart = "面议";
+    j.salaryEnd.clear();
+    j.requirements = "请填写要求1\n请填写要求2";
+    m_jobs.append(j);
+    updateJobListWidget();
+    ui->jobListWidget->setCurrentRow(m_jobs.count() - 1);
 }
 
-// 当“保存”按钮被点击时
+void JobManager::on_deleteButton_clicked()
+{
+    int row = ui->jobListWidget->currentRow();
+    if (row < 0) {
+        QMessageBox::information(this, "提示", "请先选择一个职位再删除。");
+        return;
+    }
+    m_jobs.removeAt(row);
+    updateJobListWidget();
+}
+
+void JobManager::on_jobListWidget_currentItemChanged(QListWidgetItem *current,
+                                                     QListWidgetItem *previous)
+{
+    Q_UNUSED(previous);
+    int idx = ui->jobListWidget->row(current);
+    if (idx < 0) {
+        ui->groupBox->setEnabled(false);
+    } else {
+        ui->groupBox->setEnabled(true);
+        populateForm(idx);
+    }
+}
+
+void JobManager::on_titleEdit_textChanged(const QString &text)
+{
+    int idx = ui->jobListWidget->currentRow();
+    if (idx >= 0) m_jobs[idx].title = text;
+}
+void JobManager::on_quotaEdit_textChanged(const QString &text)
+{
+    int idx = ui->jobListWidget->currentRow();
+    if (idx >= 0) m_jobs[idx].quota = text;
+}
+void JobManager::on_startsalaryEdit_textChanged(const QString &text)
+{
+    int idx = ui->jobListWidget->currentRow();
+    if (idx >= 0) m_jobs[idx].salaryStart = text;
+}
+void JobManager::on_endsalaryEdit_textChanged(const QString &text)
+{
+    int idx = ui->jobListWidget->currentRow();
+    if (idx >= 0) m_jobs[idx].salaryEnd = text;
+}
+void JobManager::on_requirementEdit_textChanged()
+{
+    int idx = ui->jobListWidget->currentRow();
+    if (idx >= 0) m_jobs[idx].requirements = ui->requirementEdit->toPlainText();
+}
+
+// ----------------------------------------------------------------
+// | “保存” 按钮：打包 m_jobs 为 JSON，POST 到服务器             |
+// ----------------------------------------------------------------
 void JobManager::on_saveButton_clicked()
 {
-    // --- 1. 将 m_jobs 数据转换为 JSON ---
-    QJsonArray jobsArray;
-    for (const auto& job : m_jobs) {
-        QJsonObject jobObj;
-        jobObj["title"] = job.title;
-        jobObj["quota"] = job.quota;
-        jobObj["salary"] = job.salaryEnd.isEmpty() ? job.salaryStart : job.salaryStart + " - " + job.salaryEnd;
-        jobObj["requirements"] = job.requirements;
-        jobsArray.append(jobObj);
+    // 构建 JSON 数组
+    QJsonArray arr;
+    for (const auto &j: m_jobs) {
+        QJsonObject o;
+        o["title"]        = j.title;
+        o["quota"]        = j.quota;
+        o["salary"]       = j.salaryEnd.isEmpty()
+                          ? j.salaryStart
+                          : j.salaryStart + " - " + j.salaryEnd;
+        o["requirements"] = j.requirements;
+        arr.append(o);
     }
-    QJsonDocument doc(jobsArray);
-    QString jsonDataString = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+    QJsonDocument doc(arr);
+    QByteArray   body = doc.toJson(QJsonDocument::Compact);
 
-    // --- 2. 准备POST请求 ---
-    QUrl url("http://tianyuhuanbao.com/api.php"); // 请替换成您的真实URL
-    QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+    QUrl url("https://your.domain/api.php");
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader,
+                  "application/json"); // 建议用 JSON
 
-    // --- 3. 准备POST数据，现在包含了会话密钥 ---
-    QUrlQuery postData;
-    postData.addQueryItem("action", "save_jobs");
-    postData.addQueryItem("key", m_sessionKey); // 使用会话密钥进行安全验证
-    postData.addQueryItem("data", jsonDataString);
+    // 在 HTTP body 或 header 中带上会话密钥
+    req.setRawHeader("X-Session-Key", m_sessionKey.toUtf8());
+    m_networkManager->post(req, body);
 
-    // --- 4. 发送数据 ---
-    m_networkManager->post(request, postData.query(QUrl::FullyEncoded).toUtf8());
-    ui->labelStatus->setText("正在保存职位信息到服务器...");
+    ui->labelStatus->setText("正在保存职位…");
     ui->saveButton->setEnabled(false);
 }
 
-// --- 网络响应处理 ---
-
-void JobManager::onServerReply(QNetworkReply *reply)
+// ----------------------------------------------------------------
+// | 只处理“保存”操作的响应，GET 操作交给 MainWindow           |
+// ----------------------------------------------------------------
+void JobManager::onSaveReply(QNetworkReply *reply)
 {
     if (reply->error() != QNetworkReply::NoError) {
-        QMessageBox::critical(this, "网络错误", "请求失败: " + reply->errorString());
-        ui->labelStatus->setText("网络错误！");
-        if(reply->operation() == QNetworkAccessManager::PostOperation) ui->saveButton->setEnabled(true);
-        reply->deleteLater();
-        return;
-    }
-
-    QByteArray responseData = reply->readAll();
-    QJsonDocument doc = QJsonDocument::fromJson(responseData);
-
-    // 根据操作类型分别处理
-    QNetworkAccessManager::Operation operation = reply->operation();
-
-    if (operation == QNetworkAccessManager::GetOperation) { // 处理获取数据的响应
-        m_jobs.clear();
-        QJsonObject rootObj = doc.object();
-        if (rootObj["status"].toString() == "success") {
-            QJsonArray jobsArray = rootObj["data"].toArray();
-            for (const QJsonValue &value : jobsArray) {
-                QJsonObject jobObj = value.toObject();
-                Job currentJob;
-                currentJob.title = jobObj["title"].toString();
-                currentJob.quota = jobObj["quota"].toString();
-                currentJob.requirements = jobObj["requirements"].toString();
-                const QString salaryText = jobObj["salary"].toString();
-                const QStringList parts = salaryText.split('-', Qt::SkipEmptyParts);
-                if (parts.size() == 2) {
-                    currentJob.salaryStart = parts.at(0).trimmed();
-                    currentJob.salaryEnd   = parts.at(1).trimmed();
-                } else {
-                    currentJob.salaryStart = salaryText;
-                    currentJob.salaryEnd.clear();
-                }
-                m_jobs.append(currentJob);
-            }
-            updateJobListWidget();
-            ui->labelStatus->setText("职位列表已更新。");
+        QMessageBox::critical(this, "网络错误", reply->errorString());
+    } else {
+        auto bytes = reply->readAll();
+        auto doc   = QJsonDocument::fromJson(bytes);
+        auto obj   = doc.object();
+        if (obj["status"].toString() == "success") {
+            QMessageBox::information(this, "保存成功", "职位已保存到服务器。");
         } else {
-            QMessageBox::critical(this, "API错误", "获取职位失败: " + rootObj["message"].toString());
+            QMessageBox::critical(this, "保存失败", obj["message"].toString());
         }
-    } else if (operation == QNetworkAccessManager::PostOperation) { // 处理保存数据的响应
-        QJsonObject rootObj = doc.object();
-        if (rootObj["status"].toString() == "success") {
-            QMessageBox::information(this, "成功", "职位信息已成功保存到服务器！");
-            ui->labelStatus->setText("保存成功！");
-        } else {
-            QMessageBox::critical(this, "保存失败", "服务器返回错误: " + rootObj["message"].toString());
-        }
-        ui->saveButton->setEnabled(true);
     }
-
+    ui->saveButton->setEnabled(true);
+    ui->labelStatus->clear();
     reply->deleteLater();
 }
 
-
-// --- UI更新与交互逻辑 (与之前版本基本相同) ---
-
+// ----------------------------------------------------------------
+// | UI 更新部分，从 m_jobs 同步到界面                          |
+// ----------------------------------------------------------------
 void JobManager::updateJobListWidget()
 {
     ui->jobListWidget->blockSignals(true);
     ui->jobListWidget->clear();
-    for (const auto& job : m_jobs) {
-        ui->jobListWidget->addItem(job.title);
-    }
+    for (auto &j: m_jobs)
+        ui->jobListWidget->addItem(j.title);
     ui->jobListWidget->blockSignals(false);
-    if (!m_jobs.isEmpty()) {
+
+    bool ok = !m_jobs.isEmpty();
+    ui->groupBox->setEnabled(ok);
+    ui->deleteButton->setEnabled(ok);
+    ui->saveButton->setEnabled(ok);
+
+    if (ok)
         ui->jobListWidget->setCurrentRow(0);
-        ui->deleteButton->setEnabled(true);
-        ui->saveButton->setEnabled(true);
-    } else {
+    else
         clearForm();
-        ui->groupBox->setEnabled(false);
-        ui->deleteButton->setEnabled(false);
-        ui->saveButton->setEnabled(false);
-    }
 }
 
 void JobManager::populateForm(int index)
 {
     if (index < 0 || index >= m_jobs.count()) return;
-    QObject::disconnect(ui->titleEdit, nullptr, this, nullptr);
-    QObject::disconnect(ui->quotaEdit, nullptr, this, nullptr);
-    QObject::disconnect(ui->startsalaryEdit, nullptr, this, nullptr);
-    QObject::disconnect(ui->endsalaryEdit, nullptr, this, nullptr);
-    QObject::disconnect(ui->requirementEdit, nullptr, this, nullptr);
-    const auto& job = m_jobs[index];
-    ui->titleEdit->setText(job.title);
-    ui->quotaEdit->setText(job.quota);
-    ui->startsalaryEdit->setText(job.salaryStart);
-    ui->endsalaryEdit->setText(job.salaryEnd);
-    ui->requirementEdit->setPlainText(job.requirements);
-    connect(ui->titleEdit, &QLineEdit::textChanged, this, &JobManager::on_titleEdit_textChanged);
-    connect(ui->quotaEdit, &QLineEdit::textChanged, this, &JobManager::on_quotaEdit_textChanged);
-    connect(ui->startsalaryEdit, &QLineEdit::textChanged, this, &JobManager::on_startsalaryEdit_textChanged);
-    connect(ui->endsalaryEdit, &QLineEdit::textChanged, this, &JobManager::on_endsalaryEdit_textChanged);
-    connect(ui->requirementEdit, &QPlainTextEdit::textChanged, this, &JobManager::on_requirementEdit_textChanged);
+
+    // 先断开旧连接，防止编辑时立刻写回 m_jobs
+    auto disconnectAll = [this](){
+        disconnect(ui->titleEdit,       nullptr, this, nullptr);
+        disconnect(ui->quotaEdit,       nullptr, this, nullptr);
+        disconnect(ui->startsalaryEdit, nullptr, this, nullptr);
+        disconnect(ui->endsalaryEdit,   nullptr, this, nullptr);
+        disconnect(ui->requirementEdit, nullptr, this, nullptr);
+    };
+    disconnectAll();
+
+    const Job &j = m_jobs[index];
+    ui->titleEdit->setText(j.title);
+    ui->quotaEdit->setText(j.quota);
+    ui->startsalaryEdit->setText(j.salaryStart);
+    ui->endsalaryEdit->setText(j.salaryEnd);
+    ui->requirementEdit->setPlainText(j.requirements);
+
+    // 重新连接
+    connect(ui->titleEdit,       &QLineEdit::textChanged,        this, &JobManager::on_titleEdit_textChanged);
+    connect(ui->quotaEdit,       &QLineEdit::textChanged,        this, &JobManager::on_quotaEdit_textChanged);
+    connect(ui->startsalaryEdit, &QLineEdit::textChanged,        this, &JobManager::on_startsalaryEdit_textChanged);
+    connect(ui->endsalaryEdit,   &QLineEdit::textChanged,        this, &JobManager::on_endsalaryEdit_textChanged);
+    connect(ui->requirementEdit, &QPlainTextEdit::textChanged,   this, &JobManager::on_requirementEdit_textChanged);
 }
 
 void JobManager::clearForm()
@@ -197,78 +225,4 @@ void JobManager::clearForm()
     ui->startsalaryEdit->clear();
     ui->endsalaryEdit->clear();
     ui->requirementEdit->clear();
-}
-
-
-void JobManager::on_jobListWidget_currentItemChanged(QListWidgetItem *current,
-                                                     QListWidgetItem *previous)
-{
-    Q_UNUSED(previous);
-    int index = ui->jobListWidget->row(current);
-    if (index < 0) {
-        ui->groupBox->setEnabled(false);
-        clearForm();
-        return;
-    }
-    ui->groupBox->setEnabled(true);
-    populateForm(index);
-}
-
-
-// --- 增、删、改的槽函数 ---
-
-void JobManager::on_addButton_clicked()
-{
-    Job newJob;
-    newJob.title = "新职位 - 请修改";
-    newJob.salaryStart = "面议";
-    newJob.salaryEnd = "";
-    newJob.quota = "若干";
-    newJob.requirements = "请填写要求1\n请填写要求2";
-    m_jobs.append(newJob);
-    updateJobListWidget();
-    ui->jobListWidget->setCurrentRow(m_jobs.count() - 1);
-}
-
-void JobManager::on_deleteButton_clicked()
-{
-    int index = ui->jobListWidget->currentRow();
-    if (index == -1) {
-        QMessageBox::information(this, "提示", "请先在左侧列表中选择一个要删除的职位。");
-        return;
-    }
-    auto reply = QMessageBox::question(this, "确认删除", "您确定要删除职位 \"" + m_jobs[index].title + "\" 吗？", QMessageBox::Yes | QMessageBox::No);
-    if (reply == QMessageBox::Yes) {
-        m_jobs.removeAt(index);
-        updateJobListWidget();
-    }
-}
-
-void JobManager::on_titleEdit_textChanged(const QString &text) {
-    int index = ui->jobListWidget->currentRow();
-    if (index != -1) m_jobs[index].title = text;
-}
-void JobManager::on_quotaEdit_textChanged(const QString &text) {
-    int index = ui->jobListWidget->currentRow();
-    if (index != -1) m_jobs[index].quota = text;
-}
-void JobManager::on_startsalaryEdit_textChanged(const QString &text) {
-    int index = ui->jobListWidget->currentRow();
-    if (index != -1) m_jobs[index].salaryStart = text;
-}
-void JobManager::on_endsalaryEdit_textChanged(const QString &text) {
-    int index = ui->jobListWidget->currentRow();
-    if (index != -1) m_jobs[index].salaryEnd = text;
-}
-void JobManager::on_requirementEdit_textChanged() {
-    int index = ui->jobListWidget->currentRow();
-    if (index != -1) m_jobs[index].requirements = ui->requirementEdit->toPlainText();
-}
-
-void JobManager::updateData(const QList<Job> &jobs)
-{
-    // 用从主窗口接收到的新数据，更新自己的数据列表
-    m_jobs = jobs;
-    // 调用自己的函数来刷新UI界面
-    updateJobListWidget();
 }
