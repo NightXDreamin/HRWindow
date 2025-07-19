@@ -61,7 +61,7 @@ void MainWindow::refreshAllData()
 // --- [核心升级] 增加了详细的调试输出和健壮性检查 ---
 void MainWindow::onServerReply(QNetworkReply *reply)
 {
-    qDebug() << "onServerReply triggered."; // 调试点 1: 确认函数被调用
+    qDebug() << "--- onServerReply triggered ---";
 
     if (reply->error() != QNetworkReply::NoError) {
         qDebug() << "Network Error:" << reply->errorString();
@@ -72,11 +72,12 @@ void MainWindow::onServerReply(QNetworkReply *reply)
     }
 
     QByteArray responseData = reply->readAll();
-    qDebug() << "Response Data:" << responseData; // 调试点 2: 查看服务器返回的原始数据
+    // 我们不再打印完整的原始数据，因为它太长了
+    qDebug() << "Received" << responseData.size() << "bytes from server.";
 
     QJsonDocument doc = QJsonDocument::fromJson(responseData);
     if (doc.isNull() || !doc.isObject()) {
-        qDebug() << "JSON parsing failed or is not an object.";
+        qDebug() << "JSON parsing failed: Document is null or not an object.";
         QMessageBox::critical(this, "数据格式错误", "服务器返回的数据不是有效的JSON对象。");
         ui->statusbar->showMessage("数据格式错误！");
         reply->deleteLater();
@@ -93,43 +94,55 @@ void MainWindow::onServerReply(QNetworkReply *reply)
         return;
     }
 
-    qDebug() << "API status is success. Parsing data...";
+    qDebug() << "API status is success. Starting data parsing...";
 
-    // --- [健壮性检查] 确认 'data' 字段存在且是一个对象 ---
+    // --- 关键诊断区 ---
     if (!rootObj.contains("data") || !rootObj["data"].isObject()) {
-        qDebug() << "'data' field is missing or not an object.";
-        QMessageBox::critical(this, "数据结构错误", "服务器返回的数据中缺少 'data' 对象。");
-        ui->statusbar->showMessage("数据结构错误！");
+        qDebug() << "CRITICAL ERROR: 'data' field is missing or is not an object!";
+        ui->statusbar->showMessage("数据结构错误：缺少 'data' 对象。");
         reply->deleteLater();
         return;
     }
-
     QJsonObject data = rootObj["data"].toObject();
 
-    // 1. 解析职位数据
-    if (data.contains("jobs") && data["jobs"].isArray()) {
-        QList<Job> jobs;
-        QJsonArray jobsArray = data["jobs"].toArray();
-        for (const QJsonValue &value : jobsArray) {
-            // ... (解析Job的逻辑保持不变) ...
+    // 检查 'jobs' 字段
+    if (!data.contains("jobs")) {
+        qDebug() << "CRITICAL ERROR: 'jobs' field is missing in 'data' object!";
+    } else {
+        QJsonValue jobsValue = data.value("jobs");
+        qDebug() << "'jobs' field found. Its type is:" << jobsValue.type()
+                 << "(Note: Array is type 4)";
+
+        if (jobsValue.isArray()) {
+            QList<Job> jobs;
+            QJsonArray jobsArray = jobsValue.toArray();
+            qDebug() << "Successfully parsed 'jobs' as an array. Size:" << jobsArray.size();
+
+            for (const QJsonValue &value : jobsArray) {
+                // ... (解析单个Job的逻辑) ...
+                if (value.isObject()){
+                    QJsonObject jobObj = value.toObject();
+                    Job currentJob;
+                    currentJob.title = jobObj["title"].toString();
+                    currentJob.title       = jobObj["title"].toString();
+                    currentJob.quota       = jobObj["quota"].toString();
+                    currentJob.salaryStart = jobObj["salaryStart"].toString();
+                    currentJob.salaryEnd   = jobObj["salaryEnd"].toString();
+                    currentJob.requirements= jobObj["requirements"].toString();
+                    jobs.append(currentJob);
+                }
+            }
+            m_jobManager->updateData(jobs);
+            qDebug() << "Jobs data updated with" << jobs.count() << "items.";
+        } else {
+            qDebug() << "ERROR: 'jobs' field is NOT an array!";
         }
-        m_jobManager->updateData(jobs);
-        qDebug() << "Jobs data updated with" << jobs.count() << "items.";
     }
 
-    // 2. 解析统计数据
-    if (data.contains("stats") && data["stats"].isObject()) {
-        DashboardStats stats;
-        QJsonObject statsObj = data["stats"].toObject();
-        // ... (解析Stats的逻辑保持不变) ...
-        m_dashboardManager->updateStats(stats);
-        qDebug() << "Dashboard stats updated.";
-    }
-
-    // ... 未来在这里添加对产品和案例数据的解析 ...
+    // ... (解析stats数据的逻辑) ...
 
     ui->statusbar->showMessage("所有数据已同步！", 3000);
-    qDebug() << "Sync finished successfully."; // 调试点 3: 确认所有流程走完
+    qDebug() << "--- Sync finished ---";
 
     reply->deleteLater();
 }
