@@ -70,55 +70,46 @@ void LoginWindow::on_passwordInputButton_clicked()
 // 当服务器返回响应时，此函数被自动调用
 void LoginWindow::onLoginReply(QNetworkReply *reply)
 {
-
-    QByteArray raw = reply->readAll();
-    qDebug() << "[LoginReply] raw =" << raw;
-    // — 然后再做 JSON 解析 —
-    QJsonParseError err;
-    QJsonDocument doc = QJsonDocument::fromJson(raw, &err);
-    if (err.error != QJsonParseError::NoError) {
-        QMessageBox::critical(this, "JSON 解析错误",
-                              err.errorString() + "\n\n原始数据:\n" + QString::fromUtf8(raw));
-        reply->deleteLater();
-        return;
-    }
-
-    // 首先，恢复UI，让用户可以重新输入
+    // 恢复UI
     ui->passwordInputLine->setEnabled(true);
     ui->passwordInputButton->setEnabled(true);
     ui->noticeTxt->setText("请输入密码");
 
-    // 检查是否有网络层面的错误 (比如服务器没开，网址写错等)
     if (reply->error() != QNetworkReply::NoError) {
         QMessageBox::critical(this, "网络错误", "无法连接服务器: " + reply->errorString());
         reply->deleteLater();
         return;
     }
 
-    // 读取服务器返回的JSON数据
-
-
-    // 解析JSON，检查登录状态
-    QJsonObject obj = doc.object();
-    if (obj["status"].toString() == "success") {
-        // --- 登录成功！---
-        // 1. 保存从服务器获取的会话密钥和用户名
-        m_sessionKey = obj["session_key"].toString();
-        m_username = obj["username"].toString();
-
-        // 2. 给用户一个积极的反馈
-        QMessageBox::information(this, "登录成功", "欢迎回来, " + m_username + "！");
-
-        // 3. 调用 accept() 来关闭登录对话框，并告诉 main.cpp 登录成功了
-        accept();
-    } else {
-        // 登录失败，显示服务器返回的错误信息
-        QMessageBox::warning(this, "登录失败", obj["message"].toString());
-
-        QMessageBox::information(this, "服务器消息", obj["message"].toString());
+    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+    if (!doc.isObject()) {
+        QMessageBox::critical(this, "响应错误", "服务器返回了无效的数据格式。");
+        reply->deleteLater();
+        return;
     }
 
-    reply->deleteLater(); // 务必在最后释放reply对象，防止内存泄漏
+    QJsonObject obj = doc.object();
+    QString status = obj["status"].toString();
+    QString message = obj["message"].toString();
+
+    if (status == "success") {
+        // --- 核心修正：增加对 session_key 的判断 ---
+        if (obj.contains("session_key")) {
+            // 如果包含 session_key，这一定是一次成功的“登录”响应
+            m_sessionKey = obj["session_key"].toString();
+            m_username = obj["username"].toString();
+            QMessageBox::information(this, "登录成功", "欢迎回来, " + m_username + "！");
+            accept(); // 关闭对话框，通知main.cpp成功
+        } else {
+            // 如果不包含 session_key，这就是一次成功的“强制清除”或其他操作的响应
+            QMessageBox::information(this, "操作成功", message);
+        }
+    } else {
+        // status 是 "error"，说明操作失败
+        QMessageBox::warning(this, "操作失败", message);
+    }
+
+    reply->deleteLater();
 }
 
 // 这两个函数让 main.cpp 可以在登录成功后获取到密钥和用户名

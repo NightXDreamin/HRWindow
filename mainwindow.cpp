@@ -154,20 +154,31 @@ void MainWindow::closeEvent(QCloseEvent *event)
                                                                "您确定要退出吗？\n退出后您在服务器上的会话将被注销。",
                                                                QMessageBox::Cancel | QMessageBox::Yes,
                                                                QMessageBox::Yes);
-    if (resBtn != QMessageBox::Yes) {
-        event->ignore(); // 用户不想退出，忽略关闭事件
-    } else {
-        // 用户确认退出，向服务器发送logout请求
+    if (resBtn == QMessageBox::Yes) {
+        // 用户确认退出
+
+        // 1. 我们先“假装”忽略关闭事件，阻止窗口立刻关闭
+        event->ignore();
+        ui->statusbar->showMessage("正在安全登出...");
+        setEnabled(false); // 禁用整个主窗口，防止用户在登出时进行其他操作
+
+        // 2. 将网络请求完成的信号，连接到整个应用程序的“退出”槽上
+        connect(m_networkManager, &QNetworkAccessManager::finished, qApp, &QCoreApplication::quit);
+
+        // 3. 现在，我们放心地发送登出请求
         QUrl url("https://tianyuhuanbao.com/api.php");
         QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
 
         QUrlQuery postData;
         postData.addQueryItem("action", "logout");
-        postData.addQueryItem("key", m_sessionKey); // 带上会话密钥
+        postData.addQueryItem("key", m_sessionKey);
 
         m_networkManager->post(request, postData.query(QUrl::FullyEncoded).toUtf8());
 
-        event->accept(); // 允许窗口关闭
+        // 程序现在会等待网络请求完成后，自动调用 qApp->quit() 来安全退出
+    } else {
+        // 用户点击了“取消”，则忽略关闭事件
+        event->ignore();
     }
 }
