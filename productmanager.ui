@@ -13,402 +13,403 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QWidget" name="horizontalLayoutWidget_2">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>1</y>
-     <width>801</width>
-     <height>601</height>
-    </rect>
-   </property>
-   <layout class="QHBoxLayout" name="productBox">
-    <item>
-     <layout class="QVBoxLayout" name="productListBox">
-      <property name="spacing">
-       <number>0</number>
-      </property>
-      <item>
-       <widget class="QListWidget" name="productListWidget">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>100</width>
-          <height>500</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>200</width>
-          <height>500</height>
-         </size>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="productButtonList">
-        <item>
-         <widget class="QPushButton" name="deleteProduct">
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <layout class="QHBoxLayout" name="productBox">
+     <item>
+      <layout class="QVBoxLayout" name="productListBox">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QListWidget" name="productListWidget">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>100</width>
+           <height>500</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>500</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="productButtonList">
+         <item>
+          <widget class="QPushButton" name="deleteProduct">
+           <property name="text">
+            <string>删除产品</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="addProduct">
+           <property name="text">
+            <string>增加产品</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="Line" name="Spacer_2">
+       <property name="minimumSize">
+        <size>
+         <width>20</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Orientation::Vertical</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="productDetailLayout">
+       <item>
+        <widget class="QLabel" name="productTitleTxt">
+         <property name="maximumSize">
+          <size>
+           <width>550</width>
+           <height>50</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>产品名称</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="productNameEdit">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>550</width>
+           <height>50</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="Spacer1_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Preferred</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="productCategoryTxt">
+         <property name="maximumSize">
+          <size>
+           <width>550</width>
+           <height>50</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>产品分类</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="productCategoryComboBox">
+         <item>
           <property name="text">
-           <string>删除产品</string>
+           <string extracomment="water">污水·废水处理</string>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="addProduct">
+         </item>
+         <item>
           <property name="text">
-           <string>增加产品</string>
+           <string extracomment="water_supply">纯水·给水系统</string>
           </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <widget class="Line" name="Spacer_2">
-      <property name="minimumSize">
-       <size>
-        <width>20</width>
-        <height>0</height>
-       </size>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Orientation::Vertical</enum>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <layout class="QVBoxLayout" name="productDetailLayout">
-      <item>
-       <widget class="QLabel" name="productTitleTxt">
-        <property name="maximumSize">
-         <size>
-          <width>550</width>
-          <height>50</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>产品名称</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLineEdit" name="productTitleEdit">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>550</width>
-          <height>50</height>
-         </size>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="Spacer1_2">
-        <property name="orientation">
-         <enum>Qt::Orientation::Vertical</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Policy::Preferred</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QLabel" name="productCategoryTxt">
-        <property name="maximumSize">
-         <size>
-          <width>550</width>
-          <height>50</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>产品分类</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QComboBox" name="productCategory">
-        <item>
-         <property name="text">
-          <string extracomment="water">污水·废水处理</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string extracomment="water_supply">纯水·给水系统</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string extracomment="gas">废气·恶臭治理</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string extracomment="dust">除尘·烟气治理</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string extracomment="disinfection">消毒·杀菌设备</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string extracomment="parts">填料·配件耗材</string>
-         </property>
-        </item>
-       </widget>
-      </item>
-      <item>
-       <spacer name="Spacer2_2">
-        <property name="orientation">
-         <enum>Qt::Orientation::Vertical</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Policy::Preferred</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QLabel" name="productImgTxt">
-        <property name="maximumSize">
-         <size>
-          <width>550</width>
-          <height>50</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>图片选择</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="productImgLayout">
-        <item>
-         <layout class="QVBoxLayout" name="productImgbox_1">
-          <item>
-           <layout class="QHBoxLayout" name="productImgPathLayout_1">
-            <item>
-             <widget class="QPushButton" name="productImgPathButton_1">
-              <property name="maximumSize">
-               <size>
-                <width>50</width>
-                <height>50</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>浏览</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="productImgPath_1">
-              <property name="text">
-               <string>尚未加载</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <widget class="QLabel" name="label">
-            <property name="minimumSize">
-             <size>
-              <width>250</width>
-              <height>180</height>
-             </size>
-            </property>
-            <property name="frameShape">
-             <enum>QFrame::Shape::Box</enum>
-            </property>
-            <property name="text">
-             <string>TextLabel</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <spacer name="horizontalSpacer">
-          <property name="orientation">
-           <enum>Qt::Orientation::Horizontal</enum>
-          </property>
-          <property name="sizeType">
-           <enum>QSizePolicy::Policy::Preferred</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item>
-         <layout class="QVBoxLayout" name="productImgbox_2">
-          <item>
-           <layout class="QHBoxLayout" name="productImgPathLayout_2">
-            <item>
-             <widget class="QPushButton" name="productImgPathButton_2">
-              <property name="maximumSize">
-               <size>
-                <width>50</width>
-                <height>50</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>浏览</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="productImgPath_2">
-              <property name="text">
-               <string>尚未加载</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <widget class="QLabel" name="label_2">
-            <property name="minimumSize">
-             <size>
-              <width>250</width>
-              <height>180</height>
-             </size>
-            </property>
-            <property name="frameShape">
-             <enum>QFrame::Shape::Box</enum>
-            </property>
-            <property name="text">
-             <string>TextLabel</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <spacer name="Spacer3_2">
-        <property name="orientation">
-         <enum>Qt::Orientation::Vertical</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Policy::Preferred</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QLabel" name="productIntroduceTxt">
-        <property name="maximumSize">
-         <size>
-          <width>550</width>
-          <height>50</height>
-         </size>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPlainTextEdit" name="productIntroduceBox">
-        <property name="maximumSize">
-         <size>
-          <width>550</width>
-          <height>120</height>
-         </size>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="productSave">
-        <property name="maximumSize">
-         <size>
-          <width>550</width>
-          <height>50</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>保存产品</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="webPathLayout">
-        <item>
-         <widget class="QLabel" name="productPath">
+         </item>
+         <item>
           <property name="text">
-           <string>尚未加载</string>
+           <string extracomment="gas">废气·恶臭治理</string>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="productPathButton">
-          <property name="maximumSize">
-           <size>
-            <width>50</width>
-            <height>50</height>
-           </size>
-          </property>
+         </item>
+         <item>
           <property name="text">
-           <string>浏览</string>
+           <string extracomment="dust">除尘·烟气治理</string>
           </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-     </layout>
-    </item>
-   </layout>
-  </widget>
+         </item>
+         <item>
+          <property name="text">
+           <string extracomment="disinfection">消毒·杀菌设备</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string extracomment="parts">填料·配件耗材</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <spacer name="Spacer2_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Preferred</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="productImgTxt">
+         <property name="maximumSize">
+          <size>
+           <width>550</width>
+           <height>50</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>图片选择</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="productImgLayout">
+         <item>
+          <layout class="QVBoxLayout" name="productImgbox_1">
+           <item>
+            <layout class="QHBoxLayout" name="productImgPathLayout_1">
+             <item>
+              <widget class="QPushButton" name="selectImageButton1">
+               <property name="maximumSize">
+                <size>
+                 <width>50</width>
+                 <height>50</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>浏览</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="productImgPath_1">
+               <property name="text">
+                <string>尚未加载</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QLabel" name="imagePreviewLabel1">
+             <property name="minimumSize">
+              <size>
+               <width>250</width>
+               <height>160</height>
+              </size>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::Shape::Box</enum>
+             </property>
+             <property name="text">
+              <string>TextLabel</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeType">
+            <enum>QSizePolicy::Policy::Preferred</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="productImgbox_2">
+           <item>
+            <layout class="QHBoxLayout" name="productImgPathLayout_2">
+             <item>
+              <widget class="QPushButton" name="selectImageButton2">
+               <property name="maximumSize">
+                <size>
+                 <width>50</width>
+                 <height>50</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>浏览</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="productImgPath_2">
+               <property name="text">
+                <string>尚未加载</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QLabel" name="imagePreviewLabel2">
+             <property name="minimumSize">
+              <size>
+               <width>250</width>
+               <height>160</height>
+              </size>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::Shape::Box</enum>
+             </property>
+             <property name="text">
+              <string>TextLabel</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QProgressBar" name="uploadProgressBar">
+         <property name="value">
+          <number>24</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="Spacer3_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Preferred</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="productIntroduceTxt">
+         <property name="maximumSize">
+          <size>
+           <width>550</width>
+           <height>50</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>产品描述</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPlainTextEdit" name="productDescriptionEdit">
+         <property name="maximumSize">
+          <size>
+           <width>550</width>
+           <height>120</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="saveProductButton">
+         <property name="maximumSize">
+          <size>
+           <width>550</width>
+           <height>50</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>保存产品</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="webPathLayout">
+         <item>
+          <widget class="QLabel" name="statusbarLabel">
+           <property name="text">
+            <string>尚未加载</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="productPathButton">
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>50</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>浏览</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+  </layout>
  </widget>
  <resources/>
  <connections/>

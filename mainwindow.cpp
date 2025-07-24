@@ -139,7 +139,35 @@ void MainWindow::onServerReply(QNetworkReply *reply)
         }
     }
 
-    // ... (解析stats数据的逻辑) ...
+    if (data.contains("products") && data["products"].isArray()) {
+        QList<Product> products;
+        QJsonArray productsArray = data["products"].toArray();
+        for (const QJsonValue &value : productsArray) {
+            QJsonObject productObj = value.toObject();
+            Product currentProduct;
+            currentProduct.name = productObj["name"].toString();
+            currentProduct.category = productObj["category"].toString();
+            currentProduct.description = productObj["description"].toString();
+            // 将JSON数组转换为QStringList
+            QJsonArray urlsArray = productObj["imageUrls"].toArray();
+            for(const QJsonValue& urlVal : urlsArray) {
+                currentProduct.imageUrls.append(urlVal.toString());
+            }
+            products.append(currentProduct);
+        }
+        m_productManager->updateData(products); // 调用ProductManager的入口函数
+    }
+
+    if (data.contains("stats") && data["stats"].isObject()) {
+        DashboardStats stats;
+        QJsonObject statsObj = data["stats"].toObject();
+        stats.totalJobsCount = statsObj["total_jobs_count"].toInt();
+        stats.totalProductsCount = statsObj["total_products_count"].toInt();
+        stats.totalCasesCount = statsObj["total_cases_count"].toInt();
+        stats.totalRecruitmentQuota = statsObj["total_recruitment_quota"].toInt();
+        stats.serverTime = statsObj["server_time"].toString();
+        m_dashboardManager->updateStats(stats); // 调用Dashboard的入口函数
+    }
 
     ui->statusbar->showMessage("所有数据已同步！", 3000);
     qDebug() << "--- Sync finished ---";
